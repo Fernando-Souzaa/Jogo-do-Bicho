@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jogo do Bicho</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+
+<!-- TOPO -->
+<div class="header">
+    <img src="{{ url_for('static', filename='icone.png') }}">
+
+    <div class="header-text">
+        <h1>Jogo do Bicho</h1>
+        <p>confiança e credibilidade</p>
+    </div>
+</div>
+
+<!-- MENU -->
+<div class="menu">
+    <a href="/home">INÍCIO</a>
+    <a href="/resultados">RESULTADOS</a>
+    <a href="/perfil">PERFIL</a>
+    <a href="/logout">SAIR</a>
+</div>
+
+<!-- CONTEÚDO -->
+<div class="container">
+
+    <h2 style="text-align: center;">
+        Resultados do Dia {{ data_hoje }}
+    </h2>
+
+    <div class="resultados-lista">
+
+        {% for r in resultados %}
+        <div class="resultado-card">
+
+            <div class="hora">
+                {{ r.hora }}
+            </div>
+
+            <div class="dados">
+                {% if r.liberado %}
+                    Grupo {{ r.grupo }} | Dezena {{ r.dezena }}
+                {% else %}
+                    Aguardando resultado...
+                {% endif %}
+            </div>
+
+        </div>
+        {% endfor %}
+
+    </div>
+
+</div>
+
+<footer>
+		<p>&copy; 2026 - Jogo do Bicho. Todos os Direitos Reservados. </p>
+	</footer>
+
+</body>
+</html>

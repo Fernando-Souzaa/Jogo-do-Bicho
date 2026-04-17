@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jogo do Bicho</title> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> 
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}"> 
+</head>
+
+<body>
+
+<nav>
+    <a href="/home">Home</a> 
+    <a href="/resultados">Resultados</a> 
+    <a href="/perfil">Perfil</a> 
+    <a href="/logout">Sair</a> 
+</nav>
+
+{% block content %}{% endblock %} 
+
+</body>
+</html>

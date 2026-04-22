@@ -1,3 +1,13 @@
+import mysql.connector
+
+def get_db_connection():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="100907",
+        database="banco_dados"
+    )
+
 from flask import Flask, render_template, request, redirect, session
 import os
 import random
@@ -11,13 +21,24 @@ UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# "banco fake"
-usuarios = []
-apostas = []
-
 # horários reais
 horarios = ["11:00", "14:00", "16:00", "18:00"]
 
+def criar_eventos_do_dia():
+    for hora in horarios:
+        nome = f"Jogo do Bicho - {hora}"
+        criar_evento()
+
+def criar_evento(nome):
+    conexao = get_db_connection()
+    cursor = conexao.cursor()
+
+    sql = "INSERT INTO eventos (nome, data_evento, status) VALUES (%s, NOW(), 'ABERTO')"
+    cursor.execute(sql, (nome,))
+
+    conexao.commit()
+    cursor.close()
+    conexao.close()
 # resultados gerados
 resultados = {}
 
@@ -40,13 +61,17 @@ def cadastro():
         email = request.form["email"]
         senha = request.form["senha"]
 
-        usuarios.append({
-            "nome": nome,
-            "email": email,
-            "senha": senha,
-            "foto": None,
-            "historico": []
-        })
+        conexao = get_db_connection()
+        cursor = conexao.cursor()
+
+        sql = "INSERT INTO usuarios (nome, email, senha) VALUES (%s, %s, %s)"
+        valores = (nome, email, senha)
+
+        cursor.execute(sql, valores)
+        conexao.commit()
+
+        cursor.close()
+        conexao.close()
 
         return redirect("/login")
 
@@ -59,10 +84,20 @@ def login():
         email = request.form["email"]
         senha = request.form["senha"]
 
-        for user in usuarios:
-            if user["email"] == email and user["senha"] == senha:
-                session["user"] = user
-                return redirect("/home")
+        conexao = get_db_connection()
+        cursor = conexao.cursor(dictionary=True)
+
+        sql = "SELECT * FROM usuarios WHERE email=%s AND senha=%s"
+        cursor.execute(sql, (email, senha))
+
+        user = cursor.fetchone()
+
+        cursor.close()
+        conexao.close()
+
+        if user:
+            session["user"] = user
+            return redirect("/home")
 
     return render_template("login.html")
 
@@ -72,55 +107,72 @@ def home():
     if "user" not in session:
         return redirect("/login")
 
+    conexao = get_db_connection()
+    cursor = conexao.cursor(dictionary=True)
+
+    # 🔥 SEMPRE BUSCA EVENTOS PRIMEIRO
+    cursor.execute("SELECT * FROM eventos WHERE status='ABERTO'")
+    eventos = cursor.fetchall()
+
     erro = None
 
     if request.method == "POST":
-        grupo = request.form.get("grupo")
-        valor_grupo = request.form.get("valor_grupo")
-        dezena = request.form.get("dezena")
-        valor_dezena = request.form.get("valor_dezena")
-        horario = request.form["horario"]
-        data = request.form["data"]
+        evento_id = request.form.get("evento_id")
 
-        if not grupo and not dezena:
-            erro = "Escolha grupo ou dezena!"
+        if not evento_id:
+            erro = "Evento não selecionado!"
         else:
-            aposta = {
-                "grupo": grupo,
-                "valor_grupo": valor_grupo,
-                "dezena": dezena,
-                "valor_dezena": valor_dezena,
-                "horario": horario,
-                "data": data,
-                "resultado": "Aguardando"
-            }
+            valor = request.form.get("valor_grupo") or request.form.get("valor_dezena")
 
-            session["user"]["historico"].append(aposta)
-            apostas.append(aposta)
+            if not valor:
+                erro = "Informe um valor!"
+            else:
+                cursor.execute("""
+                    INSERT INTO apostas (usuario_id, evento_id, valor, status, tipo)
+                    VALUES (%s, %s, %s, 'PENDENTE', 'SIMPLES')
+                """, (
+                    session["user"]["id"],
+                    evento_id,
+                    valor
+                ))
+                conexao.commit()
 
-    return render_template("home.html", erro=erro)
+    cursor.close()
+    conexao.close()
 
+    return render_template("home.html", eventos=eventos, erro=erro)
 # ---------------- VERIFICAR GANHADORES ----------------
 def verificar_apostas():
-    for user in usuarios:
-        for aposta in user["historico"]:
+    conexao = get_db_connection()
+    cursor = conexao.cursor(dictionary=True)
 
-            horario = aposta["horario"]
+    cursor.execute("""
+        SELECT a.*, e.grupo_resultado, e.dezena_resultado
+        FROM apostas a
+        JOIN eventos e ON a.evento_id = e.id
+        WHERE a.status = 'PENDENTE'
+    """)
 
-            if horario in resultados and aposta["resultado"] == "Aguardando":
-                grupo_resultado, dezena_resultado = resultados[horario]
+    apostas = cursor.fetchall()
 
-                ganhou = False
+    for aposta in apostas:
+        ganhou = False
 
-                if aposta["grupo"]:
-                    if int(aposta["grupo"]) == grupo_resultado:
-                        ganhou = True
+        if aposta["tipo"] == "GRUPO" and aposta["grupo"] == aposta["grupo_resultado"]:
+            ganhou = True
 
-                if aposta["dezena"]:
-                    if aposta["dezena"] == dezena_resultado:
-                        ganhou = True
+        elif aposta["tipo"] == "DEZENA" and aposta["dezena"] == aposta["dezena_resultado"]:
+            ganhou = True
 
-                aposta["resultado"] = "Ganhou 🏆" if ganhou else "Perdeu ❌"
+        novo_status = "GANHA" if ganhou else "PERDIDA"
+
+        cursor.execute("""
+            UPDATE apostas SET status = %s WHERE id = %s
+        """, (novo_status, aposta["id"]))
+
+    conexao.commit()
+    cursor.close()
+    conexao.close()
 
 # ---------------- RESULTADOS ----------------
 @app.route("/resultados")
@@ -163,6 +215,39 @@ def resultados_page():
         resultados=lista_resultados,
         data_hoje=data_hoje
     )
+
+@app.route("/historico")
+def historico():
+    if "user" not in session:
+        return redirect("/login")
+
+    conexao = get_db_connection()
+    cursor = conexao.cursor(dictionary=True)
+
+    sql = """
+    SELECT 
+        a.id AS aposta_id,
+        e.nome AS evento,
+        oi.descricao,
+        ai.odd_no_momento,
+        a.valor,
+        a.status,
+        a.criado_em
+    FROM apostas a
+    JOIN aposta_itens ai ON ai.aposta_id = a.id
+    JOIN opcoes_aposta oi ON oi.id = ai.opcao_id
+    JOIN eventos e ON e.id = a.evento_id
+    WHERE a.usuario_id = %s
+    ORDER BY a.criado_em DESC
+    """
+
+    cursor.execute(sql, (session["user"]["id"],))
+    apostas = cursor.fetchall()
+
+    cursor.close()
+    conexao.close()
+
+    return render_template("historico.html", apostas=apostas)
 # ---------------- PERFIL ----------------
 @app.route("/perfil", methods=["GET", "POST"])
 def perfil():

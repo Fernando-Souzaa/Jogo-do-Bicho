@@ -7,6 +7,10 @@
 </head>
 <body>
 
+{% extends "base.html" %}
+
+{% block content %}
+
 <!-- TOPO -->
 <div class="header">
     <img src="{{ url_for('static', filename='icone.png') }}"> 
@@ -19,10 +23,10 @@
 
 <!-- MENU -->
 <div class="menu"> 
-    <a href="/home">INÍCIO</a> 
-    <a href="/resultados">RESULTADOS</a> 
-    <a href="/perfil">PERFIL</a> 
-    <a href="/logout">SAIR</a> 
+    <a href="/home"><i class="fa-solid fa-house"></i> INÍCIO</a> 
+    <a href="/resultados"><i class="fa-solid fa-chart-line"></i> RESULTADOS</a> 
+    <a href="/perfil"><i class="fa-solid fa-user"></i> PERFIL</a> 
+    <a href="/logout"><i class="fa-solid fa-right-from-bracket"></i> SAIR</a> 
 </div>
 
 <!-- CONTEÚDO -->
@@ -61,6 +65,8 @@
 <footer>
 		<p>&copy; 2026 - Jogo do Bicho. Todos os Direitos Reservados. </p>
 	</footer>
+
+{% endblock %}
 
 </body>
 </html>

@@ -4,16 +4,11 @@
     <title>Jogo do Bicho</title> 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> 
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}"> 
+      <!-- FONT AWESOME -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
 <body>
-
-<nav>
-    <a href="/home">Home</a> 
-    <a href="/resultados">Resultados</a> 
-    <a href="/perfil">Perfil</a> 
-    <a href="/logout">Sair</a> 
-</nav>
 
 {% block content %}{% endblock %} 
 

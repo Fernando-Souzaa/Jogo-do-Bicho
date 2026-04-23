@@ -48,6 +48,22 @@ def gerar_resultado():
     dezena = random.randint(0, 99)
     return grupo, f"{dezena:02d}"
 
+def salvar_resultado(evento_id, grupo, dezena):
+    conexao = get_db_connection()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        UPDATE eventos
+        SET grupo_resultado = %s,
+            dezena_resultado = %s,
+            status = 'ENCERRADO'
+        WHERE id = %s
+    """, (grupo, dezena, evento_id))
+
+    conexao.commit()
+    cursor.close()
+    conexao.close()
+
 # ---------------- INICIO ----------------
 @app.route("/")
 def index():
@@ -110,7 +126,7 @@ def home():
     conexao = get_db_connection()
     cursor = conexao.cursor(dictionary=True)
 
-    # 🔥 SEMPRE BUSCA EVENTOS PRIMEIRO
+    # buscar eventos
     cursor.execute("SELECT * FROM eventos WHERE status='ABERTO'")
     eventos = cursor.fetchall()
 
@@ -118,24 +134,40 @@ def home():
 
     if request.method == "POST":
         evento_id = request.form.get("evento_id")
+        grupo = request.form.get("grupo")
+        dezena = request.form.get("dezena")
+
+        valor = request.form.get("valor_grupo") or request.form.get("valor_dezena")
 
         if not evento_id:
             erro = "Evento não selecionado!"
-        else:
-            valor = request.form.get("valor_grupo") or request.form.get("valor_dezena")
 
-            if not valor:
-                erro = "Informe um valor!"
+        elif not valor:
+            erro = "Informe um valor!"
+
+        elif not grupo and not dezena:
+            erro = "Informe grupo ou dezena!"
+
+        else:
+            if grupo:
+                tipo = "GRUPO"
             else:
-                cursor.execute("""
-                    INSERT INTO apostas (usuario_id, evento_id, valor, status, tipo)
-                    VALUES (%s, %s, %s, 'PENDENTE', 'SIMPLES')
-                """, (
-                    session["user"]["id"],
-                    evento_id,
-                    valor
-                ))
-                conexao.commit()
+                tipo = "DEZENA"
+
+            cursor.execute("""
+                INSERT INTO apostas 
+                (usuario_id, evento_id, grupo, dezena, tipo, valor, status)
+                VALUES (%s, %s, %s, %s, %s, %s, 'PENDENTE')
+            """, (
+                session["user"]["id"],
+                evento_id,
+                grupo,
+                dezena,
+                tipo,
+                valor
+            ))
+
+            conexao.commit()
 
     cursor.close()
     conexao.close()
@@ -180,74 +212,54 @@ def resultados_page():
     if "user" not in session:
         return redirect("/login")
 
+    conexao = get_db_connection()
+    cursor = conexao.cursor(dictionary=True)
+
     agora = datetime.now()
     hora_atual = agora.strftime("%H:%M")
-    data_hoje = agora.strftime("%d/%m/%Y")
+
+    cursor.execute("SELECT * FROM eventos")
+    eventos = cursor.fetchall()
 
     lista_resultados = []
 
-    for hora in horarios:
+    for evento in eventos:
+        nome = evento["nome"]
 
-        if hora <= hora_atual:
-            if hora not in resultados:
-                resultados[hora] = gerar_resultado()
+        # extrai hora do nome (ex: "Jogo do Bicho - 11:00")
+        hora_evento = nome.split("-")[1].strip()
 
-            grupo, dezena = resultados[hora]
+        if hora_evento <= hora_atual:
+
+            if evento["grupo_resultado"] is None:
+                grupo, dezena = gerar_resultado()
+
+                salvar_resultado(evento["id"], grupo, dezena)
+            else:
+                grupo = evento["grupo_resultado"]
+                dezena = evento["dezena_resultado"]
 
             lista_resultados.append({
-                "hora": hora,
+                "hora": hora_evento,
                 "grupo": grupo,
                 "dezena": dezena,
                 "liberado": True
             })
+
         else:
             lista_resultados.append({
-                "hora": hora,
+                "hora": hora_evento,
                 "grupo": "",
                 "dezena": "",
                 "liberado": False
             })
 
-    verificar_apostas()
-
-    return render_template(
-        "resultados.html",
-        resultados=lista_resultados,
-        data_hoje=data_hoje
-    )
-
-@app.route("/historico")
-def historico():
-    if "user" not in session:
-        return redirect("/login")
-
-    conexao = get_db_connection()
-    cursor = conexao.cursor(dictionary=True)
-
-    sql = """
-    SELECT 
-        a.id AS aposta_id,
-        e.nome AS evento,
-        oi.descricao,
-        ai.odd_no_momento,
-        a.valor,
-        a.status,
-        a.criado_em
-    FROM apostas a
-    JOIN aposta_itens ai ON ai.aposta_id = a.id
-    JOIN opcoes_aposta oi ON oi.id = ai.opcao_id
-    JOIN eventos e ON e.id = a.evento_id
-    WHERE a.usuario_id = %s
-    ORDER BY a.criado_em DESC
-    """
-
-    cursor.execute(sql, (session["user"]["id"],))
-    apostas = cursor.fetchall()
-
     cursor.close()
     conexao.close()
 
-    return render_template("historico.html", apostas=apostas)
+    verificar_apostas()
+
+    return render_template("resultados.html", resultados=lista_resultados)
 # ---------------- PERFIL ----------------
 @app.route("/perfil", methods=["GET", "POST"])
 def perfil():

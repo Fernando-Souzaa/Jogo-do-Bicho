@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS banco_dados;
+CREATE DATABASE IF NOT EXISTS banco_dados;aaaaaa
 USE banco_dados;
 
 CREATE TABLE IF NOT EXISTS usuarios (

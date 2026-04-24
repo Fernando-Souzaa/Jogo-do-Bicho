@@ -6,7 +6,7 @@ def get_db_connection():
         user="root",
         password="100907",
         database="banco_dados"
-    )
+    );
 
 from flask import Flask, render_template, request, redirect, session
 import os

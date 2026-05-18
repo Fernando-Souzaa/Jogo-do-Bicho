@@ -268,6 +268,10 @@ def perfil():
 
     user = session["user"]
 
+    conexao = get_db_connection()
+    cursor = conexao.cursor(dictionary=True)
+
+    # FOTO
     if request.method == "POST":
         foto = request.files["foto"]
 
@@ -276,8 +280,35 @@ def perfil():
             foto.save(caminho)
             user["foto"] = caminho
 
-    return render_template("perfil.html", user=user)
+    # BUSCAR HISTÓRICO
+    cursor.execute("""
+        SELECT 
+            a.tipo,
+            a.grupo,
+            a.dezena,
+            a.valor,       
+            a.status,
+            e.nome AS evento,       
+            DATE(a.criado_em) AS data,
+            TIME(a.criado_em) AS horario
+        FROM apostas a
+        JOIN eventos e ON e.id = a.evento_id           
+        WHERE a.usuario_id = %s
+        ORDER BY a.criado_em DESC
+    """, (user["id"],))
 
+    historico = cursor.fetchall()
+
+    print(historico)
+
+    cursor.close()
+    conexao.close()
+
+    return render_template(
+        "perfil.html",
+        user=user,
+        historico=historico
+    )
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
 def logout():

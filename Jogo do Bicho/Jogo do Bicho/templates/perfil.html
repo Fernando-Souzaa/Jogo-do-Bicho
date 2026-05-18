@@ -1,32 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Jogo do Bicho</title> 
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> 
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}"> 
+    <title>Perfil</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
 
-{% extends "base.html" %}
-
-{% block content %}
-
 <!-- TOPO -->
-<div class="header"> 
-    <img src="{{ url_for('static', filename='icone.png') }}"> 
+<div class="header">
+    <img src="{{ url_for('static', filename='icone.png') }}">
     
     <div class="header-text">
-        <h1>Jogo do Bicho</h1> 
-        <p>confiança e credibilidade</p> 
+        <h1>Jogo do Bicho</h1>
+        <p>confiança e credibilidade</p>
     </div>
 </div>
 
 <!-- MENU -->
 <div class="menu">
-    <a href="/home"><i class="fa-solid fa-house"></i> INÍCIO</a> 
-    <a href="/resultados"><i class="fa-solid fa-chart-line"></i> RESULTADOS</a> 
-    <a href="/perfil"><i class="fa-solid fa-user"></i> PERFIL</a> 
-    <a href="/logout"><i class="fa-solid fa-right-from-bracket"></i> SAIR</a>
+    <a href="/home">PRINCIPAL</a>
+    <a href="/resultados">RESULTADOS</a>
+    <a href="/perfil">PERFIL</a>
+    <a href="/logout">SAIR</a>
 </div>
 
 <!-- CONTEÚDO -->
@@ -35,26 +31,26 @@
     <!-- PERFIL -->
     <div class="perfil-card">
 
-        <!-- FOTO -->
+        <!-- FOTO ESTILO GITHUB -->
         <div class="foto-area">
             <form method="POST" enctype="multipart/form-data" id="formFoto">
                 
                 <div class="foto-wrapper">
 
                     {% if user.foto %}
-                        <img src="{{ user.foto }}"> 
+                        <img src="{{ user.foto }}">
                     {% else %}
-                        <img src="{{ url_for('static', filename='perfil.png') }}"> 
+                        <img src="{{ url_for('static', filename='default.png') }}">
                     {% endif %}
 
                     <!-- BOTÃO PEQUENO -->
-                    <label for="inputFoto" class="botao-foto"> 
-                        <i class="fa-solid fa-upload"></i> 
+                    <label for="inputFoto" class="botao-foto">
+                        ✏️
                     </label>
 
                 </div>
 
-                <input type="file" name="foto" id="inputFoto" hidden> 
+                <input type="file" name="foto" id="inputFoto" hidden>
 
             </form>
         </div>
@@ -70,41 +66,37 @@
     <!-- HISTÓRICO -->
     <div class="historico-card">
 
-        <h3>Histórico de Apostas</h3>
+    <h2>Histórico de Apostas</h2>
 
-        <table>
-            <tr>
-                <th>Grupo</th>
-                <th>Dezena</th>
-                <th>Data</th>
-                <th>Hora</th>
-                <th>Resultado</th>
-            </tr>
+    <table >
+        <tr>
+        <th>Evento</th>
+        <th>Tipo</th>
+        <th>Grupo</th>
+        <th>Dezena</th>
+        <th>Valor</th>
+        <th>Status</th>
+        <th>Data</th>
+    </tr>
 
-            {% for aposta in user.historico %}
-            <tr>
-                <td>{{ aposta.grupo or "-" }}</td>
-                <td>{{ aposta.dezena or "-" }}</td>
-                <td>{{ aposta.data }}</td>
-                <td>{{ aposta.horario }}</td>
-                <td class="{{ 'ganhou' if 'Ganhou' in aposta.resultado else 'perdeu' }}">
-                    {{ aposta.resultado }}
-                </td>
-            </tr>
-            {% endfor %}
-
-        </table>
-
-    </div>
+    {% for aposta in historico %}
+    <tr>
+        <td>{{ aposta.evento }}</td>
+        <td>{{ aposta.tipo }}</td>
+        <td>{{ aposta.grupo }}</td>
+        <td>{{ aposta.dezena }}</td>
+        <td>R$ {{ aposta.valor }}</td>
+        <td>{{ aposta.status }}</td>
+        <td>{{ aposta.data }} {{ aposta.horario }}</td>
+    </tr>
+    {% endfor %}
+    </table>
 
 </div>
 
-<footer>
-		<p>&copy; 2026 - Jogo do Bicho. Todos os Direitos Reservados. </p>
-	</footer>
+    </div>
 
-{% endblock %}
-
+<!-- SCRIPT PRA ENVIAR AUTOMÁTICO -->
 <script>
 document.getElementById("inputFoto").addEventListener("change", function() {
     document.getElementById("formFoto").submit();

@@ -51,6 +51,9 @@ SET a.status =
     END
 WHERE e.id = 1;
 
+SELECT * FROM apostas;
+SELECT id, usuario_id, evento_id, valor, status
+FROM apostas;
 SELECT 
     a.id AS aposta_id,
     a.evento_id,

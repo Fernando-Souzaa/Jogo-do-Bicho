@@ -31,7 +31,21 @@
 
 <!-- CONTEÚDO -->
 <div class="container"> 
+    <p>Saldo: R$ {{ "%.2f"|format(user.saldo) }}</p>
+<form action="/adicionar_saldo" method="POST">
 
+    <input 
+        type="number"
+        name="valor"
+        step="0.01"
+        min="1"
+    >
+
+    <button type="submit">
+        Adicionar Saldo
+    </button>
+
+</form>
     <!-- ÁREA CENTRAL -->
     <div class="apostar-box"> 
 

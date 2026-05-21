@@ -27,18 +27,47 @@ horarios = ["11:00", "14:00", "16:00", "18:00"]
 def criar_eventos_do_dia():
     for hora in horarios:
         nome = f"Jogo do Bicho - {hora}"
-        criar_evento()
+        criar_evento(nome)
 
 def criar_evento(nome):
+
     conexao = get_db_connection()
-    cursor = conexao.cursor()
+    cursor = conexao.cursor(dictionary=True)
 
-    sql = "INSERT INTO eventos (nome, data_evento, status) VALUES (%s, NOW(), 'ABERTO')"
-    cursor.execute(sql, (nome,))
+    # VERIFICA SE JÁ EXISTE EVENTO ABERTO COM ESSE NOME
+    cursor.execute("""
+        SELECT id
+        FROM eventos
+        WHERE nome = %s
+        AND status = 'ABERTO'
+    """, (nome,))
 
-    conexao.commit()
+    evento_existente = cursor.fetchone()
+
+    # SÓ CRIA SE NÃO EXISTIR
+    if not evento_existente:
+
+        cursor.execute("""
+            INSERT INTO eventos
+            (
+                nome,
+                data_evento,
+                status
+            )
+            VALUES (%s, NOW(), 'ABERTO')
+        """, (nome,))
+
+        conexao.commit()
+
+        print("EVENTO CRIADO:", nome)
+
+    else:
+
+        print("EVENTO JÁ EXISTE:", nome)
+
     cursor.close()
     conexao.close()
+
 # resultados gerados
 resultados = {}
 
@@ -52,6 +81,8 @@ def salvar_resultado(evento_id, grupo, dezena):
     conexao = get_db_connection()
     cursor = conexao.cursor()
 
+
+    print("ENCERRANDO EVENTO:", evento_id)
     cursor.execute("""
         UPDATE eventos
         SET grupo_resultado = %s,
@@ -113,6 +144,9 @@ def login():
 
         if user:
             session["user"] = user
+
+            user["saldo"] = float(user["saldo"])
+
             return redirect("/home")
 
     return render_template("login.html")
@@ -120,59 +154,192 @@ def login():
 # ---------------- HOME (APOSTA) ----------------
 @app.route("/home", methods=["GET", "POST"])
 def home():
+
     if "user" not in session:
         return redirect("/login")
 
     conexao = get_db_connection()
     cursor = conexao.cursor(dictionary=True)
 
-    # buscar eventos
-    cursor.execute("SELECT * FROM eventos WHERE status='ABERTO'")
+    # EVENTOS
+    cursor.execute("""
+        SELECT * FROM eventos
+        WHERE status='ABERTO'
+    """)
+
     eventos = cursor.fetchall()
 
     erro = None
 
     if request.method == "POST":
+
         evento_id = request.form.get("evento_id")
+
         grupo = request.form.get("grupo")
         dezena = request.form.get("dezena")
 
-        valor = request.form.get("valor_grupo") or request.form.get("valor_dezena")
+        valor_grupo = request.form.get("valor_grupo")
+        valor_dezena = request.form.get("valor_dezena")
+
+        print(request.form)
 
         if not evento_id:
-            erro = "Evento não selecionado!"
 
-        elif not valor:
-            erro = "Informe um valor!"
+            erro = "Evento não encontrado"
 
-        elif not grupo and not dezena:
-            erro = "Informe grupo ou dezena!"
+        elif not valor_grupo and not valor_dezena:
+
+            erro = "Informe um valor"
 
         else:
-            if grupo:
-                tipo = "GRUPO"
+
+            saldo_atual = float(session["user"]["saldo"])
+
+            total_aposta = 0
+
+            if valor_grupo:
+                total_aposta += float(valor_grupo)
+
+            if valor_dezena:
+                total_aposta += float(valor_dezena)
+
+            if saldo_atual < total_aposta:
+
+                erro = "Saldo insuficiente"
+
             else:
-                tipo = "DEZENA"
 
-            cursor.execute("""
-                INSERT INTO apostas 
-                (usuario_id, evento_id, grupo, dezena, tipo, valor, status)
-                VALUES (%s, %s, %s, %s, %s, %s, 'PENDENTE')
-            """, (
-                session["user"]["id"],
-                evento_id,
-                grupo,
-                dezena,
-                tipo,
-                valor
-            ))
+                novo_saldo = saldo_atual - total_aposta
 
-            conexao.commit()
+                # APOSTA EM GRUPO
+                if grupo and valor_grupo:
+
+                    valor_grupo = float(valor_grupo)
+
+                    cursor.execute("""
+                        INSERT INTO apostas
+                        (
+                            usuario_id,
+                            evento_id,
+                            grupo,
+                            dezena,
+                            tipo,
+                            valor,
+                            status
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, 'PENDENTE')
+                    """, (
+                        session["user"]["id"],
+                        evento_id,
+                        grupo,
+                        None,
+                        "GRUPO",
+                        valor_grupo
+                    ))
+
+                # APOSTA EM DEZENA
+                if dezena and valor_dezena:
+
+                    valor_dezena = float(valor_dezena)
+
+                    cursor.execute("""
+                        INSERT INTO apostas
+                        (
+                            usuario_id,
+                            evento_id,
+                            grupo,
+                            dezena,
+                            tipo,
+                            valor,
+                            status
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, 'PENDENTE')
+                    """, (
+                        session["user"]["id"],
+                        evento_id,
+                        None,
+                        dezena,
+                        "DEZENA",
+                        valor_dezena
+                    ))
+
+                # ATUALIZA SALDO
+                cursor.execute("""
+                    UPDATE usuarios
+                    SET saldo = %s
+                    WHERE id = %s
+                """, (
+                    novo_saldo,
+                    session["user"]["id"]
+                ))
+
+                conexao.commit()
+
+                print("APOSTA SALVA")
+
+                # ATUALIZA SESSÃO
+                session["user"]["saldo"] = float(novo_saldo)
+                session.modified = True
+
+                return redirect("/resultados")
 
     cursor.close()
     conexao.close()
 
-    return render_template("home.html", eventos=eventos, erro=erro)
+    return render_template(
+        "home.html",
+        eventos=eventos,
+        erro=erro,
+        user=session["user"]
+    )
+# ---------------- ADICIONAR SALDO ----------------
+@app.route("/adicionar_saldo", methods=["POST"])
+def adicionar_saldo():
+
+    print("ROTA FUNCIONOU")
+
+    if "user" not in session:
+        return redirect("/login")
+
+    valor = request.form["valor"]
+
+    if valor:
+        valor = float(valor)
+    else:
+        valor = 0
+
+    saldo_atual = float(session["user"]["saldo"])
+
+    novo_saldo = saldo_atual + valor
+
+    print("Saldo antigo:", saldo_atual)
+    print("Novo saldo:", novo_saldo)
+
+    conexao = get_db_connection()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        UPDATE usuarios
+        SET saldo = %s
+        WHERE id = %s
+    """, (
+        novo_saldo,
+        session["user"]["id"]
+    ))
+
+    conexao.commit()
+
+    cursor.close()
+    conexao.close()
+
+    # Atualiza sessão
+    session["user"]["saldo"] = novo_saldo
+
+    session.modified = True
+
+    return redirect("/home")
+
+    
 # ---------------- VERIFICAR GANHADORES ----------------
 def verificar_apostas():
     conexao = get_db_connection()
@@ -208,58 +375,163 @@ def verificar_apostas():
 
 # ---------------- RESULTADOS ----------------
 @app.route("/resultados")
-def resultados_page():
-    if "user" not in session:
-        return redirect("/login")
+def resultados():
 
     conexao = get_db_connection()
     cursor = conexao.cursor(dictionary=True)
 
-    agora = datetime.now()
-    hora_atual = agora.strftime("%H:%M")
+    # BUSCA APENAS 1 EVENTO ABERTO
+    cursor.execute("""
+        SELECT * FROM eventos
+        WHERE status = 'ABERTO'
+        LIMIT 1
+    """)
 
-    cursor.execute("SELECT * FROM eventos")
-    eventos = cursor.fetchall()
+    evento = cursor.fetchone()
 
-    lista_resultados = []
+    if evento:
 
-    for evento in eventos:
-        nome = evento["nome"]
+        grupo = random.randint(1, 25)
+        dezena = str(random.randint(0, 99)).zfill(2)
 
-        # extrai hora do nome (ex: "Jogo do Bicho - 11:00")
-        hora_evento = nome.split("-")[1].strip()
+        
 
-        if hora_evento <= hora_atual:
+        cursor.execute("""
+            UPDATE eventos
+            SET 
+                grupo_resultado = %s,
+                dezena_resultado = %s,
+                status = 'ENCERRADO'
+            WHERE id = %s
+        """, (
+            grupo,
+            dezena,
+            evento["id"]
+        ))
 
-            if evento["grupo_resultado"] is None:
-                grupo, dezena = gerar_resultado()
+        conexao.commit()
 
-                salvar_resultado(evento["id"], grupo, dezena)
-            else:
-                grupo = evento["grupo_resultado"]
-                dezena = evento["dezena_resultado"]
+       # BUSCA APOSTAS DO EVENTO
+        cursor.execute("""
+            SELECT a.*, e.grupo_resultado, e.dezena_resultado
+            FROM apostas a
+            JOIN eventos e ON a.evento_id = e.id
+            WHERE e.id = %s
+        """, (evento["id"],))
 
-            lista_resultados.append({
-                "hora": hora_evento,
-                "grupo": grupo,
-                "dezena": dezena,
-                "liberado": True
-            })
+        apostas = cursor.fetchall()
 
-        else:
-            lista_resultados.append({
-                "hora": hora_evento,
-                "grupo": "",
-                "dezena": "",
-                "liberado": False
-            })
+        for aposta in apostas:
+
+            premio = 0
+            status = "PERDIDA"
+
+            # GANHOU NO GRUPO
+            if (
+                aposta["tipo"] == "GRUPO"
+                and aposta["grupo"] == aposta["grupo_resultado"]
+            ):
+
+                premio = float(aposta["valor"]) * 18
+                status = "GANHA"
+
+            # GANHOU NA DEZENA
+            elif (
+                aposta["tipo"] == "DEZENA"
+                and aposta["dezena"] == aposta["dezena_resultado"]
+            ):
+
+                premio = float(aposta["valor"]) * 60
+                status = "GANHA"
+
+            # ATUALIZA APOSTA
+            cursor.execute("""
+                UPDATE apostas
+                SET
+                    status = %s,
+                    premio = %s
+                WHERE id = %s
+            """, (
+                status,
+                premio,
+                aposta["id"]
+            ))
+
+            # SE GANHOU, ADICIONA AO SALDO
+            if premio > 0:
+
+                cursor.execute("""
+                    UPDATE usuarios
+                    SET saldo = saldo + %s
+                    WHERE id = %s
+                """, (
+                    premio,
+                    aposta["usuario_id"]
+                ))
+
+
+                    # ATUALIZA SESSÃO
+            if aposta["usuario_id"] == session["user"]["id"]:
+
+                session["user"]["saldo"] += premio
+                session.modified = True
+        conexao.commit()
+
+        # VERIFICA SE EXISTEM EVENTOS ABERTOS
+        cursor.execute("""
+            SELECT COUNT(*) AS total
+            FROM eventos
+            WHERE status = 'ABERTO'
+        """)
+
+        total = cursor.fetchone()["total"]
+
+        # SE NÃO EXISTIR EVENTO ABERTO
+        if total == 0:
+
+            # PEGA NOMES DOS EVENTOS ANTIGOS
+            cursor.execute("""
+                SELECT DISTINCT nome
+                FROM eventos
+                GROUP BY nome
+            """)
+
+            eventos_anteriores = cursor.fetchall()
+
+            # RECRIA EVENTOS
+            for evento_anterior in eventos_anteriores:
+
+                cursor.execute("""
+                    INSERT INTO eventos
+                    (
+                        nome,
+                        status
+                    )
+                    VALUES (%s, 'ABERTO')
+                """, (
+                    evento_anterior["nome"],
+                ))
+
+            conexao.commit()
+
+            print("NOVOS EVENTOS GERADOS")
+
+    # BUSCA RESULTADOS
+    cursor.execute("""
+        SELECT *
+        FROM eventos
+        ORDER BY id DESC
+    """)
+
+    resultados = cursor.fetchall()
 
     cursor.close()
     conexao.close()
 
-    verificar_apostas()
-
-    return render_template("resultados.html", resultados=lista_resultados)
+    return render_template(
+        "resultados.html",
+        resultados=resultados
+    )
 # ---------------- PERFIL ----------------
 @app.route("/perfil", methods=["GET", "POST"])
 def perfil():
@@ -290,7 +562,8 @@ def perfil():
             a.status,
             e.nome AS evento,       
             DATE(a.criado_em) AS data,
-            TIME(a.criado_em) AS horario
+            TIME(a.criado_em) AS horario,
+            a.premio
         FROM apostas a
         JOIN eventos e ON e.id = a.evento_id           
         WHERE a.usuario_id = %s

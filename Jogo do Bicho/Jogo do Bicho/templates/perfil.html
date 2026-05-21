@@ -77,6 +77,7 @@
         <th>Valor</th>
         <th>Status</th>
         <th>Data</th>
+        <th>premio</th>
     </tr>
 
     {% for aposta in historico %}
@@ -88,6 +89,7 @@
         <td>R$ {{ aposta.valor }}</td>
         <td>{{ aposta.status }}</td>
         <td>{{ aposta.data }} {{ aposta.horario }}</td>
+        <td>R$ {{ aposta.premio }}</td>
     </tr>
     {% endfor %}
     </table>

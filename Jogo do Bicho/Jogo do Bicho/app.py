@@ -559,6 +559,8 @@ def perfil():
             a.dezena,
             a.valor,       
             a.status,
+            e.grupo_resultado,
+        e.dezena_resultado,
             e.nome AS evento,       
             DATE(a.criado_em) AS data,
             TIME(a.criado_em) AS horario,

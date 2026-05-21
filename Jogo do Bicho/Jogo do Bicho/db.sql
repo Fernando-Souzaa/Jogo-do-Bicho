@@ -29,10 +29,11 @@ CREATE TABLE IF NOT EXISTS apostas (
     valor DECIMAL(10,2) NOT NULL,
     status ENUM('PENDENTE', 'GANHA', 'PERDIDA') DEFAULT 'PENDENTE',
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    premio DECIMAL(10,2) NOT NULL DEFAULT 0,
     FOREIGN KEY (evento_id) REFERENCES eventos(id),
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
-
+SELECT id, nome, status FROM eventos;
 -- eventos iniciais
 INSERT INTO eventos (nome, data_evento, status)
 VALUES 
@@ -40,6 +41,10 @@ VALUES
 ("Jogo do Bicho - 14h", NOW(), "ABERTO"),
 ("Jogo do Bicho - 16h", NOW(), "ABERTO"),
 ("Jogo do Bicho - 18h", NOW(), "ABERTO");
+SELECT * FROM apostas ORDER BY id DESC;
+SELECT * FROM eventos; 
+SELECT * FROM apostas;
+SELECT id, nome, status FROM eventos;
 
 UPDATE apostas a
 JOIN eventos e ON a.evento_id = e.id
@@ -51,7 +56,6 @@ SET a.status =
     END
 WHERE e.id = 1;
 
-SELECT * FROM apostas;
 SELECT id, usuario_id, evento_id, valor, status
 FROM apostas;
 SELECT 

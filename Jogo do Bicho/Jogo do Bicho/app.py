@@ -4,7 +4,7 @@ def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        password="100907",
+        password="1234",
         database="banco_dados"
     )
 
@@ -22,7 +22,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # horários reais
-horarios = ["11:00", "14:00", "16:00", "18:00"]
+horarios = ["11h", "14h", "16h", "18h"]
 
 def criar_eventos_do_dia():
     for hora in horarios:
@@ -384,17 +384,14 @@ def resultados():
     cursor.execute("""
         SELECT * FROM eventos
         WHERE status = 'ABERTO'
-        LIMIT 1
-    """)
+        """)
 
-    evento = cursor.fetchone()
+    eventos_abertos = cursor.fetchall()
 
-    if evento:
+    for evento in eventos_abertos:
 
         grupo = random.randint(1, 25)
         dezena = str(random.randint(0, 99)).zfill(2)
-
-        
 
         cursor.execute("""
             UPDATE eventos
@@ -520,7 +517,9 @@ def resultados():
     cursor.execute("""
         SELECT *
         FROM eventos
+        WHERE status = 'ENCERRADO'
         ORDER BY id DESC
+        LIMIT 4
     """)
 
     resultados = cursor.fetchall()

@@ -7,6 +7,10 @@
 </head>
 <body>
 
+{% extends "base.html" %}
+
+{% block content %}
+
 <!-- TOPO -->
 <div class="header">
     <img src="{{ url_for('static', filename='icone.png') }}">
@@ -19,10 +23,10 @@
 
 <!-- MENU -->
 <div class="menu">
-    <a href="/home">PRINCIPAL</a>
-    <a href="/resultados">RESULTADOS</a>
-    <a href="/perfil">PERFIL</a>
-    <a href="/logout">SAIR</a>
+    <a href="/home"><i class="fa-solid fa-house"></i> INÍCIO</a>
+    <a href="/resultados"><i class="fa-solid fa-chart-line"></i> RESULTADOS</a>
+    <a href="/perfil"><i class="fa-solid fa-user"></i> PERFIL</a>
+    <a href="/logout"><i class="fa-solid fa-right-from-bracket"></i> SAIR</a>
 </div>
 
 <!-- CONTEÚDO -->
@@ -45,7 +49,7 @@
 
                     <!-- BOTÃO PEQUENO -->
                     <label for="inputFoto" class="botao-foto">
-                        ✏️
+                        <i class="fa-solid fa-upload"></i>
                     </label>
 
                 </div>
@@ -66,8 +70,6 @@
     <!-- HISTÓRICO -->
     <div class="historico-card">
 
-    <h2>Histórico de Apostas</h2>
-
     <table >
         <tr>
         <th>Evento</th>
@@ -76,10 +78,8 @@
         <th>Dezena</th>
         <th>Valor</th>
         <th>Status</th>
-        <th>Grupo sorteado</th>
-        <th>Dezena sorteada</th>
         <th>Data</th>
-        <th>premio</th>
+        <th>Prêmio</th>
     </tr>
 
     {% for aposta in historico %}
@@ -90,8 +90,6 @@
         <td>{{ aposta.dezena }}</td>
         <td>R$ {{ aposta.valor }}</td>
         <td>{{ aposta.status }}</td>
-        <td>{{ aposta.grupo_resultado }}</td>
-        <td>{{ aposta.dezena_resultado }}</td>
         <td>{{ aposta.data }} {{ aposta.horario }}</td>
         <td>R$ {{ aposta.premio }}</td>
     </tr>
@@ -108,6 +106,12 @@ document.getElementById("inputFoto").addEventListener("change", function() {
     document.getElementById("formFoto").submit();
 });
 </script>
+
+<footer>
+        <p>&copy; 2026 - Jogo do Bicho. Todos os Direitos Reservados. </p>
+    </footer>
+
+{% endblock %}
 
 </body>
 </html>

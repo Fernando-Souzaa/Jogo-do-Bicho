@@ -1,3 +1,4 @@
+#Importa as bibliotecas
 import mysql.connector
 
 def get_db_connection():
@@ -21,7 +22,7 @@ UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# horários reais
+# Cria os horarios para apostar
 horarios = ["11h", "14h", "16h", "18h"]
 
 def criar_eventos_do_dia():
@@ -154,14 +155,14 @@ def login():
 # ---------------- HOME (APOSTA) ----------------
 @app.route("/home", methods=["GET", "POST"])
 def home():
-
+#Caso não tenha usuario logado volta a tela de login
     if "user" not in session:
         return redirect("/login")
 
     conexao = get_db_connection()
     cursor = conexao.cursor(dictionary=True)
 
-    # EVENTOS
+    # Puxa os eventos abertos do banco
     cursor.execute("""
         SELECT * FROM eventos
         WHERE status='ABERTO'
@@ -182,7 +183,7 @@ def home():
         valor_dezena = request.form.get("valor_dezena")
 
         print(request.form)
-
+#Estrutura de decisão caso de um erro na hora de apostar
         if not evento_id:
 
             erro = "Evento não encontrado"
@@ -208,7 +209,7 @@ def home():
                 erro = "Saldo insuficiente"
 
             else:
-
+#Se estiver tudo certo realiza a aposta 
                 novo_saldo = saldo_atual - total_aposta
 
                 # APOSTA EM GRUPO
@@ -280,7 +281,7 @@ def home():
                 # ATUALIZA SESSÃO
                 session["user"]["saldo"] = float(novo_saldo)
                 session.modified = True
-
+# Redireciona para a aba resultados
                 return redirect("/resultados")
 
     cursor.close()
@@ -380,7 +381,7 @@ def resultados():
     conexao = get_db_connection()
     cursor = conexao.cursor(dictionary=True)
 
-    # BUSCA APENAS 1 EVENTO ABERTO
+    # Gera o resultado, encerra a aposta 
     cursor.execute("""
         SELECT * FROM eventos
         WHERE status = 'ABERTO'
@@ -392,7 +393,7 @@ def resultados():
 
         grupo = random.randint(1, 25)
         dezena = str(random.randint(0, 99)).zfill(2)
-
+#Encerra a aposta
         cursor.execute("""
             UPDATE eventos
             SET 
@@ -408,7 +409,7 @@ def resultados():
 
         conexao.commit()
 
-       # BUSCA APOSTAS DO EVENTO
+       # Muda o status da aposta para ganha ou perdida
         cursor.execute("""
             SELECT a.*, e.grupo_resultado, e.dezena_resultado
             FROM apostas a
@@ -474,7 +475,7 @@ def resultados():
                 session.modified = True
         conexao.commit()
 
-        # VERIFICA SE EXISTEM EVENTOS ABERTOS
+        # VERIFICA SE EXISTEM HORARIOS ABERTOS
         cursor.execute("""
             SELECT COUNT(*) AS total
             FROM eventos
@@ -513,7 +514,7 @@ def resultados():
 
             print("NOVOS EVENTOS GERADOS")
 
-    # BUSCA RESULTADOS
+    # Busca o sorteado da ultima aposta
     cursor.execute("""
         SELECT *
         FROM eventos
@@ -559,7 +560,9 @@ def perfil():
             a.dezena,
             a.valor,       
             a.status,
-            e.nome AS evento,       
+            e.nome AS evento, 
+            e.grupo_resultado,
+            e.dezena_resultado,      
             DATE(a.criado_em) AS data,
             TIME(a.criado_em) AS horario,
             a.premio

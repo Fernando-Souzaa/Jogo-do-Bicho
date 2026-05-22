@@ -30,7 +30,7 @@
 </div>
 
 <!-- CONTEÚDO -->
-<div class="container"> 
+<div class="container-saldo"> 
     <p>Saldo: R$ {{ "%.2f"|format(user.saldo) }}</p>
 <form action="/adicionar_saldo" method="POST">
 
@@ -42,7 +42,7 @@
     >
 
     <button type="submit">
-        Adicionar Saldo
+        <i class="fa-solid fa-coins"></i> Adicionar Saldo <i class="fa-solid fa-coins"></i>
     </button>
 
 </form>
@@ -89,7 +89,7 @@
     </select>
 
     <button type="submit">
-        APOSTAR
+        <i class="fa-solid fa-coins"></i> Apostar <i class="fa-solid fa-coins"></i>
     </button>
 
 </form>
